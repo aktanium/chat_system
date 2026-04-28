@@ -363,7 +363,6 @@ describe('Socket.IO', () => {
   let socket1, socket2;
 
   beforeAll((done) => {
-    // Подключитесь к серверу
     socket1 = io('http://localhost:3000', { reconnection: false });
     socket2 = io('http://localhost:3000', { reconnection: false });
 

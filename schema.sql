@@ -82,6 +82,9 @@ CREATE TABLE IF NOT EXISTS messages (
     media_type VARCHAR(100),
     is_deleted BOOLEAN DEFAULT FALSE,
     is_edited BOOLEAN DEFAULT FALSE,
+    is_encrypted BOOLEAN DEFAULT FALSE,
+    ephemeral_ttl INT DEFAULT NULL,
+    expires_at TIMESTAMP DEFAULT NULL,
     edit_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -205,7 +208,6 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
 -- VIEWS
 -- ===========================
 
--- View для получения последнего сообщения в каждом чате
 CREATE OR REPLACE VIEW conversation_last_message AS
 SELECT 
     c.id as conversation_id,
@@ -222,7 +224,6 @@ LEFT JOIN LATERAL (
 ) m ON TRUE
 LEFT JOIN users u ON m.sender_id = u.id;
 
--- View для unread message count
 CREATE OR REPLACE VIEW unread_message_count AS
 SELECT 
     cm.user_id,
@@ -238,7 +239,6 @@ GROUP BY cm.user_id, cm.conversation_id;
 -- FUNCTIONS
 -- ===========================
 
--- Function для обновления updated_at timestamp
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -247,7 +247,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers для автоматического обновления timestamp
 CREATE TRIGGER update_users_timestamp BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
@@ -258,10 +257,8 @@ CREATE TRIGGER update_messages_timestamp BEFORE UPDATE ON messages
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
 -- ===========================
--- SAMPLE DATA (для тестирования)
 -- ===========================
 
--- Создать тестовых пользователей
 INSERT INTO users (username, email, password_hash, bio) VALUES
     ('alice', 'alice@example.com', '$2b$10$..hash..', 'Hello, I am Alice'),
     ('bob', 'bob@example.com', '$2b$10$..hash..', 'Hey, this is Bob'),
@@ -272,10 +269,8 @@ ON CONFLICT (email) DO NOTHING;
 -- STATISTICS & MAINTENANCE
 -- ===========================
 
--- VACUUM для оптимизации
 -- VACUUM ANALYZE;
 
--- Проверить размер таблиц
 -- SELECT 
 --     schemaname,
 --     tablename,
@@ -287,7 +282,6 @@ ON CONFLICT (email) DO NOTHING;
 -- SECURITY: ROLES & PERMISSIONS
 -- ===========================
 
--- Создать role для приложения (для production)
 -- CREATE ROLE chat_app WITH LOGIN PASSWORD 'secure_password';
 
 -- GRANT CONNECT ON DATABASE chat_system TO chat_app;
@@ -299,20 +293,16 @@ ON CONFLICT (email) DO NOTHING;
 -- BACKUP SCRIPTS
 -- ===========================
 
--- Backup (в терминале):
 -- pg_dump -U postgres chat_system > backup_$(date +%Y%m%d).sql
 
--- Restore (в терминале):
 -- psql -U postgres chat_system < backup_20240101.sql
 
 -- ===========================
 -- PERFORMANCE OPTIMIZATION
 -- ===========================
 
--- Для быстрого поиска сообщений по содержанию
 -- CREATE INDEX idx_messages_content_gin ON messages USING gin(to_tsvector('english', content));
 
--- Для быстрого доступа к последним сообщениям
 -- CREATE INDEX idx_messages_conversation_latest ON messages(conversation_id, created_at DESC) 
 --     WHERE is_deleted = FALSE;
 
@@ -320,9 +310,7 @@ ON CONFLICT (email) DO NOTHING;
 -- DONE!
 -- ===========================
 
--- Проверить структуру
 -- \dt              -- List all tables
 -- \d users         -- Describe users table
 -- \di              -- List all indexes
 
--- Все таблицы созданы и готовы к использованию! ✅
